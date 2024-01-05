@@ -24,9 +24,13 @@ class Activity
     #[ORM\ManyToMany(targetEntity: Monitor::class, inversedBy: 'activities')]
     private Collection $Monitors;
 
+    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
+    private ?\DateTimeInterface $date_start = null;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
-    private ?\DateTimeInterface $date = null;
+    private ?\DateTimeInterface $date_end = null;
+
+
 
     
     public function __construct()
@@ -75,15 +79,28 @@ class Activity
         return $this;
     }
 
-    public function getDate(): ?\DateTimeInterface
+    public function getDateStart(): ?\DateTimeInterface
     {
-        return $this->date;
+        return $this->date_start;
     }
 
-    public function setDate(\DateTimeInterface $date): static
+    public function setDateStart(\DateTimeInterface $date_start): static
     {
-        $this->date = $date;
+        $this->date_start = $date_start;
 
         return $this;
     }
+
+    public function getDateEnd(): ?\DateTimeInterface
+    {
+        return $this->date_end;
+    }
+
+    public function setDateEnd(\DateTimeInterface $date_end): static
+    {
+        $this->date_end = $date_end;
+
+        return $this;
+    }
+
 }

@@ -51,9 +51,14 @@ class MonitorsController extends AbstractController
 
         $em->persist($monitor);
         $em->flush();
-
-        return $this->json($monitor);
-    }
+        //Why not  return $this->json($monitor); implements \JsonSerializable
+        return $this->json([
+            'id' => $monitor->getId(),
+            'name' => $monitor->getName(),
+            'email' => $monitor->getEmail(),
+            'phone' => $monitor->getPhone(),
+            'photo' => $monitor->getPhoto(),
+        ]);    }
 
     #[Route('/monitors/{id}', methods: ['PUT'])]
     public function updateMonitor(int $id, Request $request, EntityManagerInterface $em): JsonResponse
@@ -68,7 +73,13 @@ class MonitorsController extends AbstractController
 
         $em->flush();
 
-        return $this->json($monitor);
+        return $this->json([
+            'id' => $monitor->getId(),
+            'name' => $monitor->getName(),
+            'email' => $monitor->getEmail(),
+            'phone' => $monitor->getPhone(),
+            'photo' => $monitor->getPhoto(),
+        ]);
     }
 
     #[Route('/monitors/{id}', methods: ['DELETE'])]
