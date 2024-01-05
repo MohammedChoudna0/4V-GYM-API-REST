@@ -74,8 +74,6 @@ class ActivityController extends AbstractController
         return $this->json($data);
     }
 
-
-
     #[Route('/activities', methods: ['POST'])]
     public function createActivity(Request $request, EntityManagerInterface $em): JsonResponse
     {
@@ -111,7 +109,6 @@ class ActivityController extends AbstractController
             return $this->json(['code' => 21, 'description' => 'Invalid start time or duration'], 400);
         }
         
-    
         $activity = new Activity();
         $activity->setActivityType($activityType);
         foreach ($monitors as $monitor) {
@@ -128,51 +125,77 @@ class ActivityController extends AbstractController
         return $this->json($activityData, 200);
     }
     
-    
     #[Route('/activities/{activityId}', name: 'app_activity_update', methods: ['PUT'])]
     public function updateActivity(int $activityId, Request $request, EntityManagerInterface $em): JsonResponse
     {
         $repository = $em->getRepository(Activity::class);
         $activity = $repository->find($activityId);
-
+    
         if (!$activity) {
             return $this->json(['message' => 'Activity not found'], 404);
         }
-
+    
         $data = json_decode($request->getContent(), true);
-
+    
         $activityTypeRepository = $em->getRepository(ActivityType::class);
         $activityType = $activityTypeRepository->find($data['activity_type_id']);
-
+    
         if ($activityType) {
             $activity->setActivityType($activityType);
         }
-
+    
+        //We accept more than the required monitors, but not less
+        if (count($data['monitors_id']) < $activity->getActivityType()->getRequiredMonitors()) {
+            return $this->json(['code' => 21, 'description' => 'Not enough monitors for this activity type'], 400);
+        }
+    
+        $monitorRepository = $em->getRepository(Monitor::class);
+        $monitors = $monitorRepository->findBy(['id' => $data['monitors_id']]);
+        if (count($monitors) !== count($data['monitors_id'])) {
+            return $this->json(['code' => 21, 'description' => 'Some monitors not found'], 400);
+        }
+    
         if (isset($data['date_start'])) {
-            $dateStart = \DateTime::createFromFormat(\DateTime::ATOM, $data['date_start']);
+            $dateStart = \DateTime::createFromFormat('Y-m-d\TH:i:s.u\Z', $data['date_start']);
+            if (!$dateStart) {
+                return $this->json(['code' => 21, 'description' => 'Invalid start date format'], 400);
+            }
             $activity->setDateStart($dateStart);
         }
-
+    
         if (isset($data['date_end'])) {
-            $dateEnd = \DateTime::createFromFormat(\DateTime::ATOM, $data['date_end']);
+            $dateEnd = \DateTime::createFromFormat('Y-m-d\TH:i:s.u\Z', $data['date_end']);
+            if (!$dateEnd) {
+                return $this->json(['code' => 21, 'description' => 'Invalid end date format'], 400);
+            }
             $activity->setDateEnd($dateEnd);
         }
-
-        $monitorRepository = $em->getRepository(Monitor::class);
-        foreach ($data['monitors_id'] as $monitorId) {
-            $monitor = $monitorRepository->find($monitorId);
-            if ($monitor) {
-                $activity->addMonitor($monitor);
-            }
+    
+        // Check if the activity starts at 09:00, 13:30, or 17:30 and lasts for 90 minutes
+        $allowedStartTimes = ['09:00', '13:30', '17:30'];
+        $duration = $dateStart->diff($dateEnd);
+        $totalMinutes = $duration->days * 24 * 60;
+        $totalMinutes += $duration->h * 60;
+        $totalMinutes += $duration->i;
+    
+        if (!in_array($dateStart->format('H:i'), $allowedStartTimes) || $totalMinutes != 90) {
+            return $this->json(['code' => 21, 'description' => 'Invalid start time or duration'], 400);
         }
-
+        foreach ($activity->getMonitors() as $monitor) {
+            $activity->removeMonitor($monitor);
+        }
+        
+        foreach ($monitors as $monitor) {
+            $activity->addMonitor($monitor);
+        }
+    
         $em->flush();
-
+    
         $activityData = $this->transformActivity($activity);
-
-
+    
         return $this->json($activityData);
     }
+    
 
     #[Route('/activities/{activityId}', name: 'app_activity_delete', methods: ['DELETE'])]
     public function deleteActivity(int $activityId, EntityManagerInterface $em): JsonResponse
