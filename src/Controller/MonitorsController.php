@@ -43,11 +43,26 @@ class MonitorsController extends AbstractController
     {
         $data = json_decode($request->getContent(), true);
 
+        if (!isset($data['name']) || !isset($data['email'])) {
+            return $this->json(['message' => 'Required fields are missing'], 400);
+        }
+
+        if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+            return $this->json(['message' => 'The email is not valid'], 400);
+        }
+        
+        if (isset($data['phone']) && !is_numeric($data['phone'])) {
+            return $this->json(['message' => 'The phone number must be numeric'], 400);
+        }
+        
+
+
         $monitor = new Monitor();
         $monitor->setName($data['name']);
         $monitor->setEmail($data['email']);
         $monitor->setPhone($data['phone']);
         $monitor->setPhoto($data['photo']);
+        
 
         $em->persist($monitor);
         $em->flush();
